@@ -1,40 +1,29 @@
 import { useState } from "react"
+import confetti from 'canvas-confetti'
+import { Square } from "./Components/Square.jsx"
+import { WINNER_COMBOS, TURNS } from "./constants.js"
+import { WinnerModal } from "./Components/WinnerModal.jsx"
 
-const TURNS = {
-  x: 'X',
-  o: 'O',
-}
-
-const Square = ({ children, updateBoard, index, isSelected }) => {
-  const className = `square ${isSelected ? 'is-selected' : ''}`
-
-  const handleClick = () => {
-    updateBoard(index)
-  }
-
-  return (
-    <div className={className} onClick={handleClick}>
-      {children}
-    </div>
-  )
-}
-
-const WINNER_COMBOS = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-]
 
 function App() {
-  const [board, setBoard] = useState(Array(9).fill(null))
-  const [turn, setTurn] = useState('X')
+  const [board, setBoard] = useState(() => {
+    const boarFromStorage = window.localStorage.getItem('board')
+    if (boarFromStorage) {
+      return JSON.parse(boarFromStorage)
+    }
+    return Array(9).fill(null)
+  })
+  
+    
+  const [turn, setTurn] = useState(() => {
+    const turnFromStorage = window.localStorage.getItem('turn')
+    if (turnFromStorage) {
+      return turnFromStorage
+    }
+    return TURNS.x
+  }
+  )
   const [winner, setWinner] = useState(null)
-
   const checkWinner = (boardToCheck) => {
 
     for (const combo of WINNER_COMBOS) {
@@ -43,25 +32,46 @@ function App() {
         return boardToCheck[a]
       }
     }
-    return null
+    return false
+  }
+
+  const resetGame = () => {
+    setBoard(Array(9).fill(null))
+    setTurn(TURNS.x)
+    setWinner(null)
+
+    window.localStorage.clear()
+  }
+
+  const checkEndGame = (newBoard) => {
+    return newBoard.every(square => square !== null)
   }
 
   const updateBoard = (index) => {
     if (board[index] || winner) return
+    const newTurn = turn === TURNS.x ? TURNS.o : TURNS.x
+    setTurn(newTurn)
     const newBoard = [...board]
     newBoard[index] = turn
     setBoard(newBoard)
-    const newTurn = turn === 'X' ? 'O' : 'X'
-    setTurn(newTurn)
+
+    //Guardar PArtida
+    window.localStorage.setItem('board', JSON.stringify(newBoard))
+    window.localStorage.setItem('turn', newTurn)
+
     const newWinnner = checkWinner(newBoard)
     if (newWinnner) {
+      confetti()
       setWinner(newWinnner)
+    } else if (checkEndGame(newBoard)) {
+      setWinner(false)
     }
   }
 
   return (
     <main className="board">
       <h1>Hello World</h1>
+      <button onClick={resetGame}>Reset</button>
       <section className="game">
         {
           board.map((_, i) => {
@@ -80,9 +90,11 @@ function App() {
         <Square isSelected={turn === TURNS.x}>{TURNS.x}</Square>
         <Square isSelected={turn === TURNS.o}>{TURNS.o}</Square>
       </section>
+
+      <section>
+        <WinnerModal winner={winner} resetGame={resetGame} />
+      </section>
     </main>
-
-
   )
 }
 
